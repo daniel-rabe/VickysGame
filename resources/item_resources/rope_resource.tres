@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemResource" load_steps=3 format=3 uid="uid://cu5wlsl23xlkp"]
+
+[ext_resource type="Texture2D" uid="uid://cd0uibk17ifol" path="res://textures/item_icons/rope.png" id="1_5urrm"]
+[ext_resource type="Script" path="res://resources/item_resources/item_resource.gd" id="2_eq1vr"]
+
+[resource]
+script = ExtResource("2_eq1vr")
+item_key = 14
+display_name = "Rope"
+icon = ExtResource("1_5urrm")
+description = "A soft rope"
