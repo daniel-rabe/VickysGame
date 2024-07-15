@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponItemResource" load_steps=3 format=3 uid="uid://btwcp6egkdtm3"]
+
+[ext_resource type="Texture2D" uid="uid://c5of5nsj6tk2h" path="res://textures/item_icons/raft.png" id="1_1a7fw"]
+[ext_resource type="Script" path="res://resources/item_resources/weapon_item_resource.gd" id="2_qjwyr"]
+
+[resource]
+script = ExtResource("2_qjwyr")
+damage = 20.0
+damage_range = 1.5
+energy_change_per_use = -0.5
+item_key = 18
+display_name = "Raft"
+icon = ExtResource("1_1a7fw")
+description = "Raft"
+is_equippable = true

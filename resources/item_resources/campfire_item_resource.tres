@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponItemResource" load_steps=3 format=3 uid="uid://dhr6t7gxsjs1s"]
+
+[ext_resource type="Texture2D" uid="uid://d3uguhkid3nks" path="res://textures/item_icons/campfire.png" id="1_r0jm7"]
+[ext_resource type="Script" path="res://resources/item_resources/weapon_item_resource.gd" id="2_a24pe"]
+
+[resource]
+script = ExtResource("2_a24pe")
+damage = 20.0
+damage_range = 1.5
+energy_change_per_use = -0.5
+item_key = 12
+display_name = "Campfire"
+icon = ExtResource("1_r0jm7")
+description = "Campfire"
+is_equippable = true

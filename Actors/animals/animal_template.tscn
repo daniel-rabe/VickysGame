@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://dmlod7ra65iu1"]
+[gd_scene load_steps=4 format=3 uid="uid://dmlod7ra65iu1"]
 
 [ext_resource type="Script" path="res://Actors/animals/animal.gd" id="1_6twuq"]
 [ext_resource type="PackedScene" uid="uid://b4qqrb4w7vfy7" path="res://objects/hitbox/hitbox.tscn" id="2_rvg6s"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_tnkrp"]
 
 [node name="Animal" type="CharacterBody3D"]
 collision_layer = 2
@@ -32,8 +34,27 @@ unique_name_in_owner = true
 
 [node name="MeatSpawnMarker" type="Marker3D" parent="."]
 
+[node name="EyesMarker" type="Marker3D" parent="."]
+
+[node name="AttackHitArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+
+[node name="VisionArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="VisionAreaCollisionShape" type="CollisionShape3D" parent="VisionArea"]
+shape = SubResource("SphereShape3D_tnkrp")
+
 [connection signal="register_hit" from="Hitbox" to="." method="take_hit"]
 [connection signal="timeout" from="Timers/IdleTimer" to="." method="_on_idle_timer_timeout"]
 [connection signal="timeout" from="Timers/WanderTimer" to="." method="_on_wander_timer_timeout"]
 [connection signal="timeout" from="Timers/DisappearAfterDeathTimer" to="." method="_on_disappear_after_death_timer_timeout"]
 [connection signal="timeout" from="Timers/FleeTimer" to="." method="_on_flee_timer_timeout"]
+[connection signal="body_entered" from="VisionArea" to="." method="_on_vision_area_body_entered"]
+[connection signal="body_exited" from="VisionArea" to="." method="_on_vision_area_body_exited"]

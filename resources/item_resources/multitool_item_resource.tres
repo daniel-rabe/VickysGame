@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponItemResource" load_steps=3 format=3 uid="uid://bekifycraox83"]
+
+[ext_resource type="Texture2D" uid="uid://55wbr8xcr8rx" path="res://textures/item_icons/multitool.png" id="1_4arde"]
+[ext_resource type="Script" path="res://resources/item_resources/weapon_item_resource.gd" id="2_8ly2u"]
+
+[resource]
+script = ExtResource("2_8ly2u")
+damage = 20.0
+damage_range = 1.5
+energy_change_per_use = -0.5
+item_key = 13
+display_name = "Multitool"
+icon = ExtResource("1_4arde")
+description = "Multitool"
+is_equippable = true

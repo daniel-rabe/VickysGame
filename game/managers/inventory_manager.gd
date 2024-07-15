@@ -84,3 +84,4 @@ func _ready() -> void:
 	hotbar.resize(HOTBAR_SIZE)
 	inventory[0] = ItemConfig.Keys.Axe
 	inventory[1] = ItemConfig.Keys.Pickaxe
+	inventory[2] = ItemConfig.Keys.Tent

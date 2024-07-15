@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponItemResource" load_steps=3 format=3 uid="uid://dh2q8u1xmmnb3"]
+
+[ext_resource type="Texture2D" uid="uid://c8b163l1sqf2k" path="res://textures/item_icons/tinderbox.png" id="1_be00q"]
+[ext_resource type="Script" path="res://resources/item_resources/weapon_item_resource.gd" id="2_u721h"]
+
+[resource]
+script = ExtResource("2_u721h")
+damage = 20.0
+damage_range = 1.5
+energy_change_per_use = -0.5
+item_key = 15
+display_name = "Tinderbox"
+icon = ExtResource("1_be00q")
+description = "Tinderbox"
+is_equippable = true
