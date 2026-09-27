@@ -340,6 +340,7 @@ Ordered roughly by how much each unlocks.
   - Keep `ItemResource.item_key` equal to its dictionary key. Nothing checks this, and `HittableObject` matches on it, so a wrong value silently breaks harvesting.
   - An item becomes equippable by having an entry in `EQUIPPABLE_ITEM_SCENES` — there is no flag to set.
   - Copying an existing `.tres` as a starting point is how both D1 and D4 happened. Check every field, including the icon.
+- **`res://` paths are case-sensitive** in exported builds and on Linux, even though the editor on Windows and macOS forgives a mismatch. `res://Stages/…` against a `stages/` folder stopped the game booting entirely (review item E6).
 - **New behaviour on a held item?** Put the *effect* in a method and call it from a `use_item` animation method track, so timing stays an animator's decision.
 - **Scene inheritance over duplication.** `*_template.tscn` files are the base scenes; concrete content inherits from them (`equippable_item_template` → `equippable_constructable_template` → `equippable_tent`).
 - **Naming.** GDScript standard is `snake_case` for members and functions, `PascalCase` for classes and node names. Parts of the codebase predate that decision (see review item E1).

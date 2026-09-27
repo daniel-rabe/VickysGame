@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://dmlod7ra65iu1" path="res://Actors/animals/animal_template.tscn" id="1_8jdbk"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_bqfth"]
-radius = 0.001
+radius = 0.15
 height = 1.72335
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_l3h6h"]

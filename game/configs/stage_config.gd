@@ -5,7 +5,7 @@ enum Keys {
 }
 
 const STAGE_PATHS := {
-	Keys.Island : "res://Stages/island.tscn"
+	Keys.Island : "res://stages/island.tscn"
 }
 
 static func get_stage(key: Keys) -> Node:

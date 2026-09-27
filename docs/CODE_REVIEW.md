@@ -16,9 +16,34 @@ What it needs is a correctness pass. The defects below are concentrated in three
 checking they were initialised** (hotbar), and **content data that has drifted from the code
 that consumes it** (`is_equippable` vs. `EQUIPPABLE_ITEM_SCENES`, the fruit resource).
 
-Counts: **6 crash-or-corruption bugs**, **8 logic bugs**, **4 data bugs**, plus robustness,
-style and hygiene items. The six in section A have since been fixed; everything from section B
-onward is still open.
+Counts: **6 crash-or-corruption bugs**, **9 logic bugs**, **4 data bugs**, plus robustness,
+style and hygiene items.
+
+## Verification
+
+Everything marked fixed below has been **run**, not just reasoned about: Godot 4.2.2 headless, the
+real project, with a temporary instrumentation autoload driving the `EventSystem` bus and inspecting
+the live tree. The probe was removed afterwards; the project boots and runs clean with no errors.
+
+Measured results behind the status lines:
+
+| | Result |
+| --- | --- |
+| A1 | `EquippedItemManager.hotbar.size() == 9` at startup (was `0`); hotkey 1 equips instead of crashing |
+| A2 | energy clamps at `0.00` and `100.00` in the field; health loss is `4.00` over 5 × `-1.0` — linear, was quadratic |
+| A4 | `player_in_los()` true in the open, false with terrain between; FOV rejects 170°, accepts 10.8°; wolf closes 3.86 m → 1.44 m and enters Attack |
+| A5 | unregistered key pushes `No equippable scene registered for item key 16` and returns, no crash |
+| B1 | 28 / 28 inventory slots fill (was 27) |
+| B2 | `craft_item` on a full inventory returns `false` with the inventory **byte-identical**; 2 Plants → Rope succeeds |
+| B3 | `FleeTimer.one_shot == true`; `take_hit` → Hurt with idle and wander timers stopped |
+| B4 / B5 / B9 | all three animals `is_on_floor() == true`, stable heights over 6 s, wolf grounded while chasing |
+| B7 | freeze sets `is_processing_unhandled_key_input()` false; menu's first-frame gate reads false then true; `close()` restores both |
+| D1 / D4 | Fruit resolves to `item_key=4, name='Fruit', icon=fruit.png`; axe `damage_range == 1.50` |
+| B8 / E6 | see those entries — both measured, and E6 was blocking startup entirely |
+
+**Not covered by this:** anything needing a real display or real input. Rendering, the held-item
+SubViewport compositing, mouse look, actual key presses, and how any of it *feels* are all still
+unverified. B6 and the C/E items were not touched.
 
 ---
 
@@ -257,27 +282,55 @@ min_idle_time = null       max_wander_time = null   damage = null               
 max_idle_time = null       flee_time = null
 ```
 
-`null` is not a value any of these can hold. Worse, `attacking_distance = null` overrode the `1.3`
-that `Actors/animals/wolf.tscn` deliberately authors, so this was destroying real configuration, not
-just restating a default.
+`null` is not a value any of these can hold.
 
-How Godot 4.2 resolves a `null` assigned to a typed GDScript float on scene load decides how bad
-this is, and it cannot be determined without running the project:
+**Measured, not inferred.** An earlier revision of this entry speculated that Godot might coerce
+`null` to `0`, which would have left the wolf comprehensively inert. That is wrong. Tested against
+Godot 4.2.2 with a minimal two-scene project:
 
-- If the set is **rejected** and the default kept, the wolf behaves as designed and these lines are
-  inert except for silently discarding `attacking_distance = 1.3`.
-- If `null` is **coerced to 0**, the wolf is comprehensively inert: `vision_range = 0` gives its
-  vision area no radius so it never registers the player, `vision_fov = 0` fails the cone test,
-  `attacking_distance = 0` means the chase distance check can never pass so it never attacks,
-  `damage = 0` means it would do nothing if it did, and `turn_speed_weight = 0` makes `lerp_angle`
-  return the current angle so it never turns to face anything.
+- Assigning `null` to a typed float export **fails and the previous value is kept.** A node whose
+  script defaults `turn_speed_weight` to `.07` still reads `0.07` after a `= null` override.
+- When the value comes from a **base scene** rather than the script default, the base scene's value
+  also survives. `wolf.tscn` authors `attacking_distance = 1.3`; the island's `= null` override does
+  **not** discard it. Confirmed in the running game: `attacking_distance = 1.30`.
 
-Either way the lines are wrong, and in the second case they would have masked the B3/B4/B5 fixes
-entirely — a wolf that never leaves Idle shows none of them.
+So these ten lines had **no runtime effect at all**. They were invalid data, not a live bug, and
+removing them is cleanup rather than a fix. Worth removing anyway — they are misleading, they would
+start biting if Godot's coercion behaviour ever changed, and they hid real values behind apparent
+overrides.
 
-**Status: fixed.** All ten removed, which restores the script defaults and lets `wolf.tscn`'s own
-`attacking_distance = 1.3` take effect again. Checked the rest of the project for `= null`
-overrides; the Wolf was the only node with any.
+**Status: fixed (cleanup).** All ten removed. Verified in the running game that the wolf reads
+`attacking_distance=1.30, turn_speed_weight=0.070, vision_range=15, damage=20.0`. Checked the rest
+of the project for `= null` overrides; the Wolf was the only node with any.
+
+### B9 — The Wolf's body collision capsule has a 1 mm radius, so it falls through the world
+`Actors/animals/wolf.tscn` (`CapsuleShape3D_bqfth`)
+
+```
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_bqfth"]
+radius = 0.001
+height = 1.72335
+```
+
+The wolf's main `CollisionShape3D` used a capsule 1 mm across. For comparison the cow uses the
+default `0.5`, and the wolf's own *hitbox* capsule uses `0.153`, so `0.001` is a scrubbed value, not
+a decision.
+
+It combines with the terrain: the island's floor is a `ConcavePolygonShape3D`, a one-sided trimesh
+with no thickness. A 1 mm-radius `CharacterBody3D` cannot resolve a collision against a
+zero-thickness surface, so the moment anything pushes it down it tunnels straight through.
+
+This was invisible until B4. With no gravity nothing ever pushed the wolf downward, so it simply
+hung at its authored `y = 0`. Applying gravity turned a dormant bad value into the wolf dropping out
+of the level on load — observed at `y = -11` after 1.5 s and `y = -99` and accelerating a few
+seconds later, while both cows sat correctly at `y = -0.005`.
+
+**Status: fixed.** Radius set to `0.15`, matching its hitbox capsule. Verified: all three animals
+report `is_on_floor() == true` and hold a stable height (cows `-0.005`, wolf `-0.035`, exactly what
+each capsule's geometry predicts) across a 6-second run, and the wolf stays grounded while chasing.
+
+The general hazard is worth remembering: a one-sided trimesh floor punishes small collision shapes.
+A thickened or convex floor collider would be more forgiving.
 
 ---
 
@@ -465,6 +518,12 @@ Keys.Island            : "res://Stages/island.tscn"                 # dir is sta
 These resolve on Windows/macOS but fail in a packed export and on Linux. (`res://Actors/...`
 elsewhere is fine — that directory really is capitalised.)
 
+**Status: fixed, and it was not theoretical.** Running the project on Linux, `StageConfig.get_stage()`
+failed outright: `Cannot open file 'res://Stages/island.tscn'`, `load()` returned null, and
+`.instantiate()` on null aborted startup. **The game did not boot at all.** It works on Windows and
+macOS only because their filesystems are case-insensitive. Both paths corrected, and every `res://`
+string in every script is now checked to resolve against the real on-disk path.
+
 ---
 
 ## F. Repository hygiene
@@ -498,7 +557,8 @@ references a real key.
 - **A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
 - **B1, B2 and B7 are done** — inventory capacity, the crafting transaction, and closing the menu.
 - **D1, D2 and D4 are done** — the fruit resource, the redundant `is_equippable` field, the axe's reach.
-- **B3, B4, B5 and B8 are done** — the flee-timer loop, animal gravity, physics during Hurt, and the Wolf's ten null overrides.
+- **B3, B4, B5 and B8 are done** — the flee-timer loop, animal gravity, physics during Hurt, and the Wolf's ten null overrides (which turned out to be inert).
+- **B9 and E6 are done** — the Wolf's 1 mm collision capsule, and the case-mismatched resource paths that stopped the game booting on Linux.
 
 Remaining, in order:
 
@@ -508,4 +568,4 @@ Remaining, in order:
    property is `null`, every craftable has a blueprint. D1, D4 and B8 would all have been caught by
    it in seconds.
 3. **F1** — gitignore the committed editor temp files.
-4. **D3, C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.
+4. **D3, C1–C8, E1–E5** — cleanup, ideally alongside whatever feature touches each file next.
