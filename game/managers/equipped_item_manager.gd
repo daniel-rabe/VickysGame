@@ -8,6 +8,8 @@ func hotbar_updated(temp_hotbar: Array) -> void:
 
 func hotbar_pressed(hotkey: int) -> void:
 	var hotbar_index = hotkey - 1
+	if hotbar_index < 0 or hotbar_index >= hotbar.size():
+		return
 	if hotbar[hotbar_index] == null:
 		return
 	if active_hotbar_slot != hotbar_index:

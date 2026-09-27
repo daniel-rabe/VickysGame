@@ -85,3 +85,13 @@ func _ready() -> void:
 	inventory[0] = ItemConfig.Keys.Axe
 	inventory[1] = ItemConfig.Keys.Pickaxe
 	inventory[2] = ItemConfig.Keys.Tent
+	# Broadcast the starting state, otherwise every listener keeps the empty
+	# array it was built with: the hotbar UI stays blank and EquippedItemManager
+	# indexes into a zero-length hotbar on the first hotkey press.
+	#
+	# Deferred on purpose. The stage (and this manager with it) is added from
+	# StageController._ready(), which runs before the HUD's own _ready(), so
+	# broadcasting here directly would reach hotbar slots whose @onready node
+	# references are still null. By the end of the frame the whole tree is ready.
+	send_inventory.call_deferred()
+	send_hotbar.call_deferred()

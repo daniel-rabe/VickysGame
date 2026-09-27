@@ -11,4 +11,4 @@ func _ready() -> void:
 	$NumberTextureRect/NumberLabel.text = str(get_index() + 1)
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	return data is InventorySlot and ItemConfig.get_item_resource(data.item_key).is_equippable
+	return data is InventorySlot and ItemConfig.is_equippable(data.item_key)

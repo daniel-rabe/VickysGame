@@ -17,11 +17,15 @@ checking they were initialised** (hotbar), and **content data that has drifted f
 that consumes it** (`is_equippable` vs. `EQUIPPABLE_ITEM_SCENES`, the fruit resource).
 
 Counts: **6 crash-or-corruption bugs**, **7 logic bugs**, **3 data bugs**, plus robustness,
-style and hygiene items.
+style and hygiene items. The six in section A have since been fixed; everything from section B
+onward is still open.
 
 ---
 
 ## A. Crashes and state corruption
+
+> **All six items in this section have been fixed.** Each carries a status line below.
+> Sections B onward are still open.
 
 ### A1 — Pressing `1`–`9` before ever using the hotbar crashes the game
 `game/managers/equipped_item_manager.gd:9-11`, `game/managers/inventory_manager.gd:82-87`
@@ -37,6 +41,8 @@ the first drag, for the same reason.
 
 **Fix:** call `send_hotbar()` alongside the inventory initialisation in
 `InventoryManager._ready()`, and guard `hotbar_pressed()` with a bounds check.
+
+**Status: fixed.** `InventoryManager._ready()` now broadcasts the starting inventory and hotbar (deferred to end-of-frame, so the HUD's `@onready` references are resolved first), and `hotbar_pressed()` bounds-checks the index.
 
 ### A2 — Energy is broadcast clamped but stored unclamped, so starvation compounds and the health bar lies
 `game/managers/player_stats_manager.gd:9-16`
@@ -67,6 +73,8 @@ stretch of walking is free.
 **Fix:** clamp `current_energy` into the field; compute the overdraft, clamp the field to 0, and
 route the health loss through `change_health()` so the signal fires.
 
+**Status: fixed.** `current_energy` is now clamped in the field; the overdraft is charged once and routed through `change_health()` so `PLA_health_updated` fires. Both stat fields are explicitly typed `float`.
+
 ### A3 — `Interactable.startInteraction` is never callable
 `items/interactables/interactable.gd:7` vs `Actors/player/interaction_ray_cast.gd:11`
 
@@ -78,6 +86,8 @@ snake_case name, so every current interactable works by accident.
 `Invalid call. Nonexistent function 'start_interaction'`.
 
 **Fix:** rename the base method to `start_interaction()`.
+
+**Status: fixed.** Base method renamed to `start_interaction()`.
 
 ### A4 — `can_see_player()` calls the FOV check twice and never checks line of sight
 `Actors/animals/animal.gd:137-138`
@@ -95,6 +105,8 @@ centre — so the cone is 160° wide, not 80°.
 
 **Fix:** `return player_in_vision_range and player_in_fov() and player_in_los()`, and halve
 `vision_fov` (or `deg_to_rad(vision_fov / 2.0)`) to make the export mean total FOV.
+
+**Status: fixed** (line of sight). `can_see_player()` now calls `player_in_los()` instead of `player_in_fov()` twice, and `player_in_los()` resolves the player's head by node lookup rather than by an untyped property access. The `vision_fov` half-angle/total-angle question is a tuning decision and was left alone.
 
 ### A5 — Hotbar-equippable items with no equippable scene crash on equip
 `Actors/player/equippable_item_holder.gd:12`, `game/configs/item_config.gd:79-89`
@@ -114,6 +126,8 @@ press its key → `Attempt to call 'instantiate()' on a null value`.
 **Fix:** null-check in `equip_item()` and bail early; and derive `_can_drop_data` from
 `EQUIPPABLE_ITEM_SCENES.has(key)` rather than from a hand-maintained flag, so the two cannot drift.
 
+**Status: fixed.** `equip_item()` null-checks the packed scene, and both `_can_drop_data` guards now ask `ItemConfig.is_equippable()`, which reads `EQUIPPABLE_ITEM_SCENES` directly. The `ItemResource.is_equippable` field is now unused by logic and should be dropped in a data pass (see D2).
+
 ### A6 — Broken ternary in `updateIcon` inverts the null guard it was meant to be
 `ui/custom_nodes/inventory_slot.gd:17`
 
@@ -129,6 +143,8 @@ non-null branch is taken unconditionally.
 **Failure:** a slot holding a key missing from `ITEM_RESOURCE_PATHS` →
 `Invalid get index 'icon' on a base object of type 'Nil'`. Latent today because every key is
 registered, but the guard on line 15 shows this path was expected to be hit.
+
+**Status: fixed.** Ternary corrected to `null if resource == null else resource.icon`.
 
 ---
 
@@ -408,10 +424,13 @@ references a real key.
 
 ## Suggested order of work
 
-1. **A1, A2** — the two defects a player hits in the first minute (hotkey crash, fake health bar).
-2. **B1, B2, B7** — inventory correctness and being able to close the menu.
-3. **A5 + D1 + D2** — fix the data, then collapse `is_equippable` into `EQUIPPABLE_ITEM_SCENES` so it cannot drift again.
-4. **A3, A4, A6** — one-line fixes each, and A4 turns wolf AI from wall-hacking into a real predator.
-5. **B3, B4, B5** — animal movement and the flee-timer loop.
-6. **F1, F4** — gitignore the temp files; add the data-integrity check as a headless test.
-7. **C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.
+**A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
+
+Remaining, in order:
+
+1. **B1, B2, B7** — inventory correctness and being able to close the menu.
+2. **D1 + D2** — fix the fruit resource, and drop the now-unused `ItemResource.is_equippable` field
+   (A5 already moved the drop rules onto `EQUIPPABLE_ITEM_SCENES`, so the field has no readers left).
+3. **B3, B4, B5** — animal movement and the flee-timer loop.
+4. **F1, F4** — gitignore the temp files; add the data-integrity check as a headless test.
+5. **C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.

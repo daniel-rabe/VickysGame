@@ -14,7 +14,7 @@ func updateIcon() -> void:
 		icon_texture_rect.texture = null
 	else:
 		var resource = ItemConfig.get_item_resource(item_key)
-		icon_texture_rect.texture = resource == null if null else resource.icon
+		icon_texture_rect.texture = null if resource == null else resource.icon
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if item_key == null:
@@ -30,7 +30,7 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 
 func _can_drop_data(_at_position: Vector2, origin_slot: Variant) -> bool:
 	if item_key != null and origin_slot is HotbarSlot:
-		return ItemConfig.get_item_resource(item_key).is_equippable
+		return ItemConfig.is_equippable(item_key)
 	return origin_slot is InventorySlot
 
 func _drop_data(_at_position: Vector2, origin_slot: Variant) -> void:

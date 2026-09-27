@@ -135,15 +135,19 @@ func player_in_fov() -> bool:
 	return direction_to_player.angle_to(forward) <= deg_to_rad(vision_fov)
 
 func can_see_player() -> bool:
-	return player_in_vision_range and player_in_fov() and player_in_fov()
+	return player_in_vision_range and player_in_fov() and player_in_los()
 
 func player_in_los() -> bool:
 	if not player:
 		return false
+	# Aim at the player's head node when it is there, so the ray clears the
+	# terrain the player is standing on; fall back to their origin otherwise.
+	var player_head := player.get_node_or_null(^"Head") as Node3D
+	var ray_target := player_head.global_position if player_head else player.global_position
 	var query_params := PhysicsRayQueryParameters3D.new()
 	query_params.from = eyes_marker.global_position
-	query_params.to = player.head.global_position
-	query_params.collision_mask = 1 + 64
+	query_params.to = ray_target
+	query_params.collision_mask = 1 + 64 # ground + static_body
 	var space_state := get_world_3d().direct_space_state
 	return space_state.intersect_ray(query_params).is_empty()
 

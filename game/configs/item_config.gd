@@ -88,6 +88,12 @@ static func get_equippable_item_scene(key: Keys) -> PackedScene:
 		return load(EQUIPPABLE_ITEM_SCENES.get(key))
 	return null
 
+# The scene registry is the authority on what can be equipped. Asking it directly
+# keeps the hotbar drop rules from drifting out of sync with what actually has a
+# held-item scene to instantiate.
+static func is_equippable(key) -> bool:
+	return key != null and EQUIPPABLE_ITEM_SCENES.has(key)
+
 const PICKUPPABLE_ITEM_PATHS := {
 	Keys.Log: "res://items/interactables/rigid_pickuppable_log.tscn",
 	Keys.Coal: "res://items/interactables/rigid_pickuppable_coal.tscn",

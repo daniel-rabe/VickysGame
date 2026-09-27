@@ -4,5 +4,5 @@ class_name Interactable;
 
 @export var prompt := 'interact';
 
-func startInteraction() -> void:
+func start_interaction() -> void:
 	pass;

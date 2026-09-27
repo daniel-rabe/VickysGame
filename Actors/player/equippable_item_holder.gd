@@ -9,7 +9,11 @@ func try_to_use_item() -> void:
 
 func equip_item(item_key: ItemConfig.Keys) -> void:
 	unequip_item()
-	var item_scene := ItemConfig.get_equippable_item_scene(item_key).instantiate()
+	var item_packed_scene := ItemConfig.get_equippable_item_scene(item_key)
+	if item_packed_scene == null:
+		push_warning("No equippable scene registered for item key %s" % item_key)
+		return
+	var item_scene := item_packed_scene.instantiate()
 	if item_scene is EquippableWeapon:
 		item_scene.weapon_item_resource = ItemConfig.get_item_resource(item_key)
 	elif item_scene is EquippableConsumable:
