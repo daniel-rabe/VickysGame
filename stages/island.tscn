@@ -156,13 +156,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.72497, 0, 2.38111)
 
 [node name="Wolf" parent="." instance=ExtResource("12_6i1t2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.7511, 0, 36.1386)
-turn_speed_weight = null
-min_idle_time = null
-max_idle_time = null
-min_wander_time = null
-max_wander_time = null
-flee_time = null
-attacking_distance = null
-damage = null
-vision_range = null
-vision_fov = null

@@ -16,7 +16,7 @@ What it needs is a correctness pass. The defects below are concentrated in three
 checking they were initialised** (hotbar), and **content data that has drifted from the code
 that consumes it** (`is_equippable` vs. `EQUIPPABLE_ITEM_SCENES`, the fruit resource).
 
-Counts: **6 crash-or-corruption bugs**, **7 logic bugs**, **4 data bugs**, plus robustness,
+Counts: **6 crash-or-corruption bugs**, **8 logic bugs**, **4 data bugs**, plus robustness,
 style and hygiene items. The six in section A have since been fixed; everything from section B
 onward is still open.
 
@@ -150,8 +150,8 @@ registered, but the guard on line 15 shows this path was expected to be hit.
 
 ## B. Logic bugs
 
-> **B1, B2 and B7 have been fixed** and carry status lines below.
-> B3, B4, B5 and B6 are still open.
+> **B1–B5, B7 and B8 have been fixed** and carry status lines below.
+> B6 is still open.
 
 ### B1 — The last inventory slot can never be filled
 `game/managers/inventory_manager.gd:14`
@@ -197,6 +197,8 @@ twitching in place.
 
 **Fix:** set `one_shot = true` on `FleeTimer`, and stop it in the `Idle`/`Wander` entry branches.
 
+**Status: fixed.** `FleeTimer` is now `one_shot`, and `set_state()` stops all three behaviour timers on entry rather than each branch stopping the ones it happened to remember. That removes the whole class of bug: Idle and Wander previously stopped none, and Attack stopped none either.
+
 ### B4 — Animals have no gravity
 `Actors/animals/animal.gd` (no `velocity.y` handling anywhere)
 
@@ -207,12 +209,16 @@ with `y` at 0 and call `move_and_slide()`. Nothing ever applies gravity, unlike 
 **Failure:** an animal that starts or ends up above the terrain hovers there; one that walks off a
 ledge crosses the gap in mid-air.
 
+**Status: fixed.** Animals now carry an exported `gravity` (9.8, matching the project default) applied as `velocity.y -= gravity * delta` while airborne. The three steering functions that assigned `velocity` wholesale — and so wiped the vertical component every frame — now go through `set_horizontal_velocity()`, which touches only x and z.
+
 ### B5 — `Hurt` and `Dead` have no per-frame case, so animals freeze in place while reacting
 `Actors/animals/animal.gd:104-115`
 
 The `_physics_process` `match` handles `Idle`, `Wander`, `Flee`, `Chase`, `Attack` but not `Hurt`.
 With B4 that means a fleeing animal hit mid-stride stops dead in the air until the hurt animation
 finishes, then teleports back into motion.
+
+**Status: fixed.** Gravity and `move_and_slide()` moved out of the `match` in `_physics_process`, so they run in every state including the ones with no case. `move_and_slide()` was removed from the individual loops, leaving one call site. Idle, Hurt and Attack now zero horizontal velocity on entry, since they previously relied on simply never being moved. `Dead` still disables physics processing deliberately — it also disables its collision shape, so there is nothing to fall onto.
 
 ### B6 — The interaction prompt does not update when looking from one interactable to another
 `Actors/player/interaction_ray_cast.gd:12-14`
@@ -239,6 +245,39 @@ path at all.
 close an open menu.
 
 **Status: fixed.** `set_freeze()` now also toggles `set_process_unhandled_key_input()`, and `PlayerMenuBase` handles `ui_cancel`/`open_crafting_menu` itself to close. It marks the event handled before closing, because `close()` unfreezes the player mid-dispatch and the same Esc would otherwise re-open the mouse. The menu also starts deaf to key input for one frame so the keypress that opened it cannot close it.
+
+### B8 — The Wolf instance in the island carried ten `= null` property overrides
+`stages/island.tscn` (Wolf node)
+
+The stage's Wolf instance overrode ten exported floats with `null`:
+
+```
+turn_speed_weight = null   min_wander_time = null   attacking_distance = null   vision_range = null
+min_idle_time = null       max_wander_time = null   damage = null               vision_fov = null
+max_idle_time = null       flee_time = null
+```
+
+`null` is not a value any of these can hold. Worse, `attacking_distance = null` overrode the `1.3`
+that `Actors/animals/wolf.tscn` deliberately authors, so this was destroying real configuration, not
+just restating a default.
+
+How Godot 4.2 resolves a `null` assigned to a typed GDScript float on scene load decides how bad
+this is, and it cannot be determined without running the project:
+
+- If the set is **rejected** and the default kept, the wolf behaves as designed and these lines are
+  inert except for silently discarding `attacking_distance = 1.3`.
+- If `null` is **coerced to 0**, the wolf is comprehensively inert: `vision_range = 0` gives its
+  vision area no radius so it never registers the player, `vision_fov = 0` fails the cone test,
+  `attacking_distance = 0` means the chase distance check can never pass so it never attacks,
+  `damage = 0` means it would do nothing if it did, and `turn_speed_weight = 0` makes `lerp_angle`
+  return the current angle so it never turns to face anything.
+
+Either way the lines are wrong, and in the second case they would have masked the B3/B4/B5 fixes
+entirely — a wolf that never leaves Idle shows none of them.
+
+**Status: fixed.** All ten removed, which restores the script defaults and lets `wolf.tscn`'s own
+`attacking_distance = 1.3` take effect again. Checked the rest of the project for `= null`
+overrides; the Wolf was the only node with any.
 
 ---
 
@@ -459,13 +498,14 @@ references a real key.
 - **A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
 - **B1, B2 and B7 are done** — inventory capacity, the crafting transaction, and closing the menu.
 - **D1, D2 and D4 are done** — the fruit resource, the redundant `is_equippable` field, the axe's reach.
+- **B3, B4, B5 and B8 are done** — the flee-timer loop, animal gravity, physics during Hurt, and the Wolf's ten null overrides.
 
 Remaining, in order:
 
-1. **B3, B4, B5** — animal movement and the flee-timer loop.
-2. **B6** — the interaction prompt not refreshing between adjacent interactables.
-3. **F4 + D1's root cause** — a headless data-integrity check: every resource's `item_key` matches its
-   registry key, no resource sets a property its script does not declare, every craftable has a
-   blueprint. Both D1 and D4 would have been caught by it in seconds.
-4. **F1** — gitignore the committed editor temp files.
-5. **D3, C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.
+1. **B6** — the interaction prompt not refreshing between adjacent interactables.
+2. **F4 + D1's root cause** — a headless data-integrity check: every resource's `item_key` matches
+   its registry key, no resource or scene sets a property its script does not declare, no exported
+   property is `null`, every craftable has a blueprint. D1, D4 and B8 would all have been caught by
+   it in seconds.
+3. **F1** — gitignore the committed editor temp files.
+4. **D3, C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.

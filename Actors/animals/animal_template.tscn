@@ -31,6 +31,7 @@ one_shot = true
 
 [node name="FleeTimer" type="Timer" parent="Timers"]
 unique_name_in_owner = true
+one_shot = true
 
 [node name="MeatSpawnMarker" type="Marker3D" parent="."]
 

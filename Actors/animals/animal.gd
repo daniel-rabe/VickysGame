@@ -46,6 +46,7 @@ var player_in_vision_range := false
 @export var damage := 20.0
 @export var vision_range := 15
 @export var vision_fov := 80.0
+@export var gravity := 9.8 # m/s^2, matches the project's default_gravity
 
 @onready var health := max_health
 
@@ -64,13 +65,22 @@ func animation_finished(_animation_name: String) -> void:
 func look_forward() -> void:
 	rotation.y = lerp_angle(rotation.y, atan2(velocity.x, velocity.z) + PI, turn_speed_weight)
 
+# Steering only ever sets the horizontal plane. Assigning `velocity` wholesale
+# would wipe the vertical component and cancel gravity every frame.
+func set_horizontal_velocity(direction: Vector3, speed: float) -> void:
+	velocity.x = direction.x * speed
+	velocity.z = direction.z * speed
+
+func stop_horizontal_velocity() -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+
 func pick_wander_velocity() -> void:
 	var direction := Vector2(0, -1).rotated(randf() * PI * 2) # -1 means forward
-	velocity = Vector3(direction.x, 0, direction.y) * normal_speed
+	set_horizontal_velocity(Vector3(direction.x, 0, direction.y), normal_speed)
 
 func wander_loop() -> void:
 	look_forward()
-	move_and_slide()
 
 	if is_aggressive and can_see_player():
 		set_state(State.Chase)
@@ -81,7 +91,6 @@ func idle_loop() -> void:
 
 func flee_loop() -> void:
 	look_forward()
-	move_and_slide()
 
 func chase_loop() -> void:
 	look_forward()
@@ -90,8 +99,7 @@ func chase_loop() -> void:
 	navigation_agent_3d.target_position = player.global_position
 	var direction := global_position.direction_to(navigation_agent_3d.get_next_path_position())
 	direction.y = 0
-	velocity = direction.normalized() * alarmed_speed
-	move_and_slide()
+	set_horizontal_velocity(direction.normalized(), alarmed_speed)
 
 func attack_loop() -> void:
 	var direction := global_position.direction_to(player.global_position)
@@ -101,7 +109,14 @@ func attack() -> void:
 	if player in attack_hit_area.get_overlapping_bodies():
 		EventSystem.PLA_change_health.emit(-damage)
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	# Gravity and move_and_slide sit outside the match so they run in every state,
+	# including Hurt, which has no per-frame case: an animal hit mid-stride used to
+	# hang motionless in the air until its flinch animation finished. Nothing
+	# applied gravity at all before, so animals simply floated wherever they were.
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+
 	match state:
 		State.Idle:
 			idle_loop()
@@ -114,6 +129,8 @@ func _physics_process(_delta: float) -> void:
 		State.Attack:
 			attack_loop()
 
+	move_and_slide()
+
 func _ready() -> void:
 	animation_player.animation_finished.connect(animation_finished)
 	vision_area_collision_shape.shape.radius = vision_range
@@ -124,7 +141,7 @@ func pick_away_from_velocity() -> bool:
 
 	var direction := player.global_position.direction_to(global_position)
 	direction.y = 0
-	velocity = direction.normalized() * alarmed_speed
+	set_horizontal_velocity(direction.normalized(), alarmed_speed)
 	return true
 
 func player_in_fov() -> bool:
@@ -153,8 +170,17 @@ func player_in_los() -> bool:
 
 func set_state(new_state: State) -> void:
 	state = new_state
+	# Every entry starts from a clean slate. Each branch used to stop the timers it
+	# happened to remember, and Idle and Wander stopped none - so a flee_timer left
+	# running would keep firing and drag the animal back to Idle every few seconds
+	# for the rest of its life, cancelling each new Wander.
+	idle_timer.stop()
+	wander_timer.stop()
+	flee_timer.stop()
+
 	match state:
 		State.Idle:
+			stop_horizontal_velocity()
 			idle_timer.start(randf_range(min_idle_time, max_idle_time))
 			animation_player.play(idle_animations.pick_random(), ANIM_BLEND)
 		State.Wander:
@@ -162,9 +188,7 @@ func set_state(new_state: State) -> void:
 			wander_timer.start(randf_range(min_wander_time, max_wander_time))
 			animation_player.play("Walk", ANIM_BLEND)
 		State.Hurt:
-			idle_timer.stop()
-			wander_timer.stop()
-			flee_timer.stop()
+			stop_horizontal_velocity()
 			animation_player.play(hurt_animations.pick_random(), ANIM_BLEND)
 		State.Flee:
 			if (pick_away_from_velocity()):
@@ -173,20 +197,15 @@ func set_state(new_state: State) -> void:
 			else:
 				set_state(State.Idle)
 		State.Chase:
-			idle_timer.stop()
-			wander_timer.stop()
-			flee_timer.stop()
 			animation_player.play("Gallop", ANIM_BLEND)
 		State.Attack:
+			stop_horizontal_velocity()
 			animation_player.play("Attack", ANIM_BLEND)
 		State.Dead:
 			animation_player.play("Death", ANIM_BLEND)
 			main_collision_shape.disabled = true
 			var meat_scene = ItemConfig.get_pickuppable_item(ItemConfig.Keys.RawMeat)
 			EventSystem.SPA_spawn_scene.emit(meat_scene, meat_spawn_marker.global_transform)
-			idle_timer.stop()
-			wander_timer.stop()
-			flee_timer.stop()
 			set_physics_process(false)
 			disappear_after_death_timer.start(10)
 

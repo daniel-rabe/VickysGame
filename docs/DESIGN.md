@@ -227,9 +227,16 @@ A 7-state machine — `Idle`, `Wander`, `Flee`, `Chase`, `Attack`, `Hurt`, `Dead
 `set_state()` for entry actions, a `match` in `_physics_process` for per-frame behaviour, and
 `AnimationPlayer.animation_finished` for exits. Three one-shot `Timer`s pace idling, wandering and
 fleeing; the `IdleTimer` autostarts, which is what boots the machine one second after spawn.
+`set_state()` stops all three on entry, so a timer from the previous state cannot fire and drag the
+animal back out of the new one.
 
-Perception is a `VisionArea` sphere (radius set from `vision_range`) for range, plus a FOV cone
-check; a line-of-sight raycast helper exists but is not wired in (review item A4). `is_aggressive`
+Gravity and a single `move_and_slide()` sit *outside* the `match`, so they apply in every state —
+including `Hurt`, which has no per-frame case and only needs to keep falling while it flinches.
+States that should hold still (`Idle`, `Hurt`, `Attack`) zero their horizontal velocity on entry;
+steering goes through `set_horizontal_velocity()` so it never clobbers the vertical component.
+
+Perception is a `VisionArea` sphere (radius set from `vision_range`) for range, a FOV cone check,
+and a line-of-sight raycast against ground and static bodies, so cover works. `is_aggressive`
 is the single switch that makes the same script a predator or prey:
 
 | | Cow | Wolf |
@@ -239,6 +246,7 @@ is the single switch that makes the same script a predator or prey:
 | Wander / alarmed speed | 0.6 / 1.8 | 0.9 / 2.5 |
 | Attack distance | 2.0 | 1.3 |
 | Damage | 20 | 20 |
+| Vision range / FOV | 15 / 80 | 15 / 80 |
 
 Chasing uses a `NavigationAgent3D` against the island's `NavigationRegion3D`. Attacks check
 `AttackHitArea` overlap from an animation keyframe, so a swing can miss. On death the animal plays
