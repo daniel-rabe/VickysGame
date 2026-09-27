@@ -150,6 +150,9 @@ registered, but the guard on line 15 shows this path was expected to be hit.
 
 ## B. Logic bugs
 
+> **B1, B2 and B7 have been fixed** and carry status lines below.
+> B3, B4, B5 and B6 are still open.
+
 ### B1 — The last inventory slot can never be filled
 `game/managers/inventory_manager.gd:14`
 
@@ -162,6 +165,8 @@ if slot > -1 && slot < INVENTORY_SIZE - 1:
 and picking up an item into the final slot silently fails.
 
 **Fix:** `if slot > -1:`.
+
+**Status: fixed.** The redundant upper bound is gone; `get_free_slot()` already signals a full inventory with `-1`, so all 28 slots are now usable.
 
 ### B2 — Crafting into a full inventory destroys the materials
 `bulletins/player_menus/crafting_menu.gd:36-40`, `game/managers/inventory_manager.gd:12-18`
@@ -176,6 +181,8 @@ other event refreshes it.
 
 **Fix:** check capacity before consuming costs (or add first, then consume), and emit
 `send_inventory()` from the deletion paths.
+
+**Status: fixed.** Crafting is now a single checked operation, `InventoryManager.craft_item()`, reached through a new `INV_craft_item` signal. It re-verifies affordability and that the result has a slot *before* consuming anything, so there is no partial state to roll back. `delete_crafting_blueprint_costs()` now broadcasts once when it finishes, so a removal can no longer leave listeners showing stale contents. The old `INV_delete_crafting_blueprint_costs` signal was removed — it leaked crafting's internals onto the bus and had no other emitter.
 
 ### B3 — `FleeTimer` is not one-shot, so a spooked animal is yanked back to Idle forever
 `Actors/animals/animal_template.tscn` (`FleeTimer` has no `one_shot`), `Actors/animals/animal.gd:150-177`
@@ -230,6 +237,8 @@ path at all.
 
 **Fix:** add `set_process_unhandled_key_input(!freeze)` to `set_freeze()`, and bind `Esc`/`TAB` to
 close an open menu.
+
+**Status: fixed.** `set_freeze()` now also toggles `set_process_unhandled_key_input()`, and `PlayerMenuBase` handles `ui_cancel`/`open_crafting_menu` itself to close. It marks the event handled before closing, because `close()` unfreezes the player mid-dispatch and the same Esc would otherwise re-open the mouse. The menu also starts deaf to key input for one frame so the keypress that opened it cannot close it.
 
 ---
 
@@ -424,13 +433,14 @@ references a real key.
 
 ## Suggested order of work
 
-**A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
+- **A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
+- **B1, B2 and B7 are done** — inventory capacity, the crafting transaction, and closing the menu.
 
 Remaining, in order:
 
-1. **B1, B2, B7** — inventory correctness and being able to close the menu.
-2. **D1 + D2** — fix the fruit resource, and drop the now-unused `ItemResource.is_equippable` field
+1. **D1 + D2** — fix the fruit resource, and drop the now-unused `ItemResource.is_equippable` field
    (A5 already moved the drop rules onto `EQUIPPABLE_ITEM_SCENES`, so the field has no readers left).
-3. **B3, B4, B5** — animal movement and the flee-timer loop.
+2. **B3, B4, B5** — animal movement and the flee-timer loop.
+3. **B6** — the interaction prompt not refreshing between adjacent interactables.
 4. **F1, F4** — gitignore the temp files; add the data-integrity check as a headless test.
 5. **C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.

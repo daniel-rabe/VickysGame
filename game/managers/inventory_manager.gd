@@ -10,8 +10,11 @@ func get_free_slot() -> int:
 	return inventory.find(null)
 
 func add_item(key: ItemConfig.Keys) -> bool:
+	# get_free_slot() already returns -1 when the inventory is full, so an upper
+	# bound is redundant - and at INVENTORY_SIZE - 1 it rejected the valid last
+	# slot, making the inventory one slot smaller than advertised.
 	var slot := get_free_slot()
-	if slot > -1 && slot < INVENTORY_SIZE - 1:
+	if slot > -1:
 		inventory[slot] = key
 		send_inventory()
 		return true
@@ -50,10 +53,36 @@ func switch_two_item_indexes(
 	send_hotbar()
 	send_inventory()
 
+# Crafting has to be one checked operation. Previously the menu emitted "delete
+# the costs" and "add the result" as two independent signals and could not see
+# that the second one failed, so a craft into a full inventory consumed the
+# materials and produced nothing.
+func craft_item(item_key: ItemConfig.Keys) -> bool:
+	var blueprint := ItemConfig.get_item_blueprint(item_key)
+	if blueprint == null:
+		return false
+
+	var total_cost := 0
+	for cost in blueprint.costs:
+		if inventory.count(cost.item_key) < cost.amount:
+			return false
+		total_cost += cost.amount
+
+	# The result needs one slot. Consuming the costs frees total_cost of them,
+	# so only a costless recipe can actually run out of room.
+	if inventory.count(null) + total_cost < 1:
+		return false
+
+	delete_crafting_blueprint_costs(blueprint.costs)
+	return add_item(item_key)
+
 func delete_crafting_blueprint_costs(costs : Array[BlueprintCostData]) -> void:
 	for cost in costs:
 		for _amount in cost.amount:
 			delete_item(cost.item_key)
+	# delete_item() is silent on purpose so a multi-item removal broadcasts once,
+	# but the removal as a whole must not leave listeners showing stale contents.
+	send_inventory()
 
 func delete_item(item_key: ItemConfig.Keys) -> void:
 	if not inventory.has(item_key):
@@ -76,7 +105,7 @@ func _enter_tree() -> void:
 	EventSystem.INV_ask_update_inventory.connect(send_inventory)
 	EventSystem.INV_switch_two_item_indexes.connect(switch_two_item_indexes)
 	EventSystem.INV_add_item.connect(add_item)
-	EventSystem.INV_delete_crafting_blueprint_costs.connect(delete_crafting_blueprint_costs)
+	EventSystem.INV_craft_item.connect(craft_item)
 	EventSystem.INV_delete_item_by_index.connect(delete_item_by_index)
 
 func _ready() -> void:

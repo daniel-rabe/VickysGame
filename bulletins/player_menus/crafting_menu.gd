@@ -34,10 +34,9 @@ func hide_item_info() -> void:
 	item_description_label.text = ""
 
 func crafting_button_pressed(item_key: ItemConfig.Keys) -> void:
-	EventSystem.INV_delete_crafting_blueprint_costs.emit(
-		ItemConfig.get_item_blueprint(item_key).costs
-	)
-	EventSystem.INV_add_item.emit(item_key)
+	# InventoryManager owns the whole transaction: it re-checks affordability and
+	# that there is room for the result before it consumes anything.
+	EventSystem.INV_craft_item.emit(item_key)
 
 func update_inventory(inventory: Array) -> void:
 	super(inventory)

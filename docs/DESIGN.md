@@ -52,7 +52,7 @@ Signals are grouped by a three-letter domain prefix:
 | Prefix | Domain | Signals |
 | --- | --- | --- |
 | `BUL_` | Bulletins (transient UI) | `create_bulletin`, `destroy_bulletin` |
-| `INV_` | Inventory | `try_to_pickup_item`, `ask_update_inventory`, `inventory_updated`, `switch_two_item_indexes`, `add_item`, `delete_crafting_blueprint_costs`, `hotbar_updated`, `delete_item_by_index` |
+| `INV_` | Inventory | `try_to_pickup_item`, `ask_update_inventory`, `inventory_updated`, `switch_two_item_indexes`, `add_item`, `craft_item`, `hotbar_updated`, `delete_item_by_index` |
 | `PLA_` | Player | `freeze_player`, `unfreeze_player`, `change_energy`, `energy_updated`, `change_health`, `health_updated` |
 | `EQU_` | Equipment | `hotkey_pressed`, `equip_item`, `unequip_item`, `active_hotbar_slot_updated`, `delete_equipped_item` |
 | `SPA_` | Spawning | `spawn_scene` |
@@ -163,7 +163,11 @@ per slot. `add_item()` finds the first `null` via `Array.find(null)`; on success
 inventory and hotbar is a single `INV_switch_two_item_indexes` swap that works uniformly in both
 directions via `isHotbar` flags.
 
-Starting kit is hard-coded in `_ready()`: Axe, Pickaxe, Tent.
+Starting kit is hard-coded in `_ready()`: Axe, Pickaxe, Tent, broadcast on the first frame.
+
+Crafting is a single checked operation on this manager (`craft_item`, via `INV_craft_item`): it
+re-verifies affordability and that the result has a slot before consuming any materials, so a
+craft either happens completely or not at all.
 
 The manager is a child of the **Player** scene, so the inventory is stage-scoped: changing stages
 destroys it. There is no serialisation — **no save/load (not implemented)**.
@@ -301,8 +305,8 @@ animals.
 | `E` / Enter | Interact (pick up) |
 | Left mouse | Use equipped item |
 | `1`–`9` | Equip / unequip hotbar slot |
-| `TAB` | Open crafting menu |
-| `Esc` | Toggle mouse capture (there is no pause menu) |
+| `TAB` | Open / close crafting menu |
+| `Esc` | Close an open menu; otherwise toggle mouse capture (there is no pause menu) |
 
 ## 7. Known gaps and roadmap
 

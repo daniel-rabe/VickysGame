@@ -15,6 +15,10 @@ func set_freeze(freeze: bool) -> void:
 	set_physics_process(!freeze)
 	set_process_input(!freeze)
 	set_process_unhandled_input(!freeze)
+	# The hotkey and menu keys arrive through _unhandled_key_input, which has its
+	# own gate. Without this a "frozen" player still equipped items behind an open
+	# menu and re-captured the mouse on Esc, leaving the menu unclickable.
+	set_process_unhandled_key_input(!freeze)
 
 
 func move() -> void:
