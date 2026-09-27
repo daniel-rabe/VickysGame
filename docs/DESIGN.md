@@ -272,8 +272,10 @@ Two distinct UI concepts:
   signals. Crosshair, 9 hotbar slots, health and energy bars.
 - **Bulletins** — transient UI spawned on demand. `BulletinController` keeps a `key → instance`
   dictionary so a bulletin is idempotent: asking for one that already exists does nothing. Two
-  exist: the interaction prompt (driven by the raycast entering/leaving an `Interactable`) and the
-  crafting menu.
+  exist: the interaction prompt (driven by what the interaction raycast is aimed at) and the
+  crafting menu. Asking for a bulletin whose key is already present **refreshes** it — that is how
+  the prompt changes text as the crosshair moves between interactables without being destroyed and
+  rebuilt.
 
 `PlayerMenuBase` is the shared scaffolding for full-screen menus: on open it releases the mouse,
 emits `PLA_freeze_player`, requests an inventory refresh, and wires hover handlers for both

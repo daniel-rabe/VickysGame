@@ -39,11 +39,12 @@ Measured results behind the status lines:
 | B4 / B5 / B9 | all three animals `is_on_floor() == true`, stable heights over 6 s, wolf grounded while chasing |
 | B7 | freeze sets `is_processing_unhandled_key_input()` false; menu's first-frame gate reads false then true; `close()` restores both |
 | D1 / D4 | Fruit resolves to `item_key=4, name='Fruit', icon=fruit.png`; axe `damage_range == 1.50` |
+| B6 | prompt follows the aim across a direct A→B pan, clears on a non-`Interactable`, and clears when the aimed-at item is picked up and freed; one prompt node across four pans |
 | B8 / E6 | see those entries — both measured, and E6 was blocking startup entirely |
 
 **Not covered by this:** anything needing a real display or real input. Rendering, the held-item
 SubViewport compositing, mouse look, actual key presses, and how any of it *feels* are all still
-unverified. B6 and the C/E items were not touched.
+unverified. The C and E items other than E6 were not touched.
 
 ---
 
@@ -175,8 +176,7 @@ registered, but the guard on line 15 shows this path was expected to be hit.
 
 ## B. Logic bugs
 
-> **B1–B5, B7 and B8 have been fixed** and carry status lines below.
-> B6 is still open.
+> **All of section B has been fixed.** Each item carries a status line below.
 
 ### B1 — The last inventory slot can never be filled
 `game/managers/inventory_manager.gd:14`
@@ -253,6 +253,28 @@ created on the false→true edge only, so panning directly from a stick to a mus
 empty frame between) leaves the stick's prompt on screen.
 
 **Fix:** track the current collider and refresh the bulletin when it changes.
+
+**Status: fixed.** The raycast now tracks the prompt *text* it is showing rather than a flag or a
+node reference, and `BulletinController.create_bulletin()` refreshes an existing bulletin instead of
+doing nothing, so the prompt updates in place with no destroy/recreate flicker.
+
+Comparing text rather than node identity matters, and the first attempt at this got it wrong.
+Tracking `current_interactable` and comparing nodes looks right and passes the pan test, but **a
+freed object compares equal to `null` in GDScript** — so the moment the interactable under the
+crosshair is picked up and freed, `interactable != current_interactable` becomes `null != null`,
+the state never changes, and the prompt is stranded. That is the commonest case of all, and the
+original `is_hitting` bool handled it correctly. Caught by running it, not by reading it.
+
+Also fixed by the same change: a ray hitting something on the interactable layer that is *not* an
+`Interactable` used to match neither branch and strand the prompt.
+
+Verified against the running game — aim at nothing, aim at A, pan **straight** to B with no
+intervening empty frame (the original bug), pan back, look away, four pans in a row holding at
+exactly one prompt node, a non-`Interactable` collider, and picking up the item being aimed at.
+All correct.
+
+One deliberate consequence: an `Interactable` with an empty `prompt` now shows no prompt at all,
+rather than an empty box. Every authored prompt is non-empty and the class default is `'interact'`.
 
 ### B7 — Freezing the player does not stop key input, so the crafting menu cannot be closed with a key and hotkeys still fire
 `Actors/player/player.gd:13-17` and `63-72`
@@ -559,13 +581,13 @@ references a real key.
 - **D1, D2 and D4 are done** — the fruit resource, the redundant `is_equippable` field, the axe's reach.
 - **B3, B4, B5 and B8 are done** — the flee-timer loop, animal gravity, physics during Hurt, and the Wolf's ten null overrides (which turned out to be inert).
 - **B9 and E6 are done** — the Wolf's 1 mm collision capsule, and the case-mismatched resource paths that stopped the game booting on Linux.
+- **B6 is done** — the interaction prompt now follows the crosshair. Sections A, B and D are complete.
 
 Remaining, in order:
 
-1. **B6** — the interaction prompt not refreshing between adjacent interactables.
-2. **F4 + D1's root cause** — a headless data-integrity check: every resource's `item_key` matches
+1. **F4 + D1's root cause** — a headless data-integrity check: every resource's `item_key` matches
    its registry key, no resource or scene sets a property its script does not declare, no exported
    property is `null`, every craftable has a blueprint. D1, D4 and B8 would all have been caught by
    it in seconds.
-3. **F1** — gitignore the committed editor temp files.
-4. **D3, C1–C8, E1–E5** — cleanup, ideally alongside whatever feature touches each file next.
+2. **F1** — gitignore the committed editor temp files.
+3. **D3, C1–C8, E1–E5** — cleanup, ideally alongside whatever feature touches each file next.
