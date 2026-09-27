@@ -12,4 +12,3 @@ item_key = 18
 display_name = "Raft"
 icon = ExtResource("1_1a7fw")
 description = "Raft"
-is_equippable = true

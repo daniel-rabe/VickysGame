@@ -12,4 +12,3 @@ item_key = 15
 display_name = "Tinderbox"
 icon = ExtResource("1_be00q")
 description = "Tinderbox"
-is_equippable = true

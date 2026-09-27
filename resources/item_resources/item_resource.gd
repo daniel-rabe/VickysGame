@@ -5,4 +5,6 @@ class_name ItemResource
 @export var display_name := "item name"
 @export var icon : Texture2D
 @export_multiline var description := "description"
-@export var is_equippable := false
+# Whether an item can be equipped is not authored here. ItemConfig.is_equippable()
+# derives it from EQUIPPABLE_ITEM_SCENES, so the answer cannot drift away from
+# whether there is actually a held-item scene to instantiate.

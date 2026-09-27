@@ -11,4 +11,3 @@ item_key = 3
 display_name = "Mushroom"
 icon = ExtResource("1_o8l1y")
 description = "A tasteless mushroom"
-is_equippable = true

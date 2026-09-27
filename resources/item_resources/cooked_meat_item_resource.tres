@@ -11,4 +11,3 @@ item_key = 9
 display_name = "Cooked meat"
 icon = ExtResource("1_318w7")
 description = "Cooked meat"
-is_equippable = true

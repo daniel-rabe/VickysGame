@@ -12,4 +12,3 @@ item_key = 11
 display_name = "Pickaxe"
 icon = ExtResource("1_8sqy4")
 description = "A DIY pickaxe."
-is_equippable = true

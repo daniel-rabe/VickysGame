@@ -10,4 +10,3 @@ display_name = "Coal"
 icon = ExtResource("1_d52ir")
 description = "A black lump of coal
 "
-is_equippable = false

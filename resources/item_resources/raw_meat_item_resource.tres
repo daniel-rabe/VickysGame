@@ -10,4 +10,3 @@ display_name = "Raw meat"
 icon = ExtResource("1_ay1pk")
 description = "Some raw meat. Needs to be cooked.
 "
-is_equippable = false

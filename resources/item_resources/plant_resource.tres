@@ -9,4 +9,3 @@ item_key = 2
 display_name = "Plant"
 icon = ExtResource("1_5ss1c")
 description = "A green plant"
-is_equippable = false

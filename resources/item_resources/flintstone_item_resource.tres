@@ -10,4 +10,3 @@ display_name = "Flintstone"
 icon = ExtResource("1_0n1u4")
 description = "A yellow flintstone
 "
-is_equippable = false

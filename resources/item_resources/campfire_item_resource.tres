@@ -12,4 +12,3 @@ item_key = 12
 display_name = "Campfire"
 icon = ExtResource("1_r0jm7")
 description = "Campfire"
-is_equippable = true

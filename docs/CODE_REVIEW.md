@@ -16,7 +16,7 @@ What it needs is a correctness pass. The defects below are concentrated in three
 checking they were initialised** (hotbar), and **content data that has drifted from the code
 that consumes it** (`is_equippable` vs. `EQUIPPABLE_ITEM_SCENES`, the fruit resource).
 
-Counts: **6 crash-or-corruption bugs**, **7 logic bugs**, **3 data bugs**, plus robustness,
+Counts: **6 crash-or-corruption bugs**, **7 logic bugs**, **4 data bugs**, plus robustness,
 style and hygiene items. The six in section A have since been fixed; everything from section B
 onward is still open.
 
@@ -318,6 +318,9 @@ costs nothing and documents the bus.
 
 ## D. Content data defects
 
+> **D1, D2 and D4 have been fixed.** D3 (placeholder resources typed as weapons) is
+> still open, as is the balance question noted under D1.
+
 ### D1 — `fruit_item_resource.tres` is a copy of the mushroom resource
 `resources/item_resources/fruit_item_resource.tres`
 
@@ -335,9 +338,15 @@ giving two sources of truth with nothing checking them. A `_ready` assertion ove
 `ITEM_RESOURCE_PATHS`, or dropping the field and passing the key in from the caller, removes the
 class of bug.
 
+**Status: fixed.** `item_key` corrected to 4, `display_name` to "Fruit", the description rewritten, and the icon repointed at the unused `textures/item_icons/fruit.png` (it was also showing the mushroom icon). Every one of the 19 registered resources was then audited against `ITEM_RESOURCE_PATHS`; fruit was the only mismatch.
+
+**Still open:** the root cause. `item_key` is load-bearing — `HittableObject.register_hit` matches it against `weapon_filter` — so it cannot simply be dropped, and nothing checks it against the dictionary key. That check belongs in F4. The copied stats (`health_change = -5.0`, `energy_change = 10.0`, identical to the mushroom) were left alone: whether fruit should cost health is a balance decision, not a defect.
+
 ### D2 — Seven items are flagged `is_equippable` without an equippable scene
 See A5. `is_equippable` is a second, hand-maintained source of truth for the same fact
 `EQUIPPABLE_ITEM_SCENES` already encodes.
+
+**Status: fixed.** `ItemResource.is_equippable` is gone from the script and from all 17 resources that set it. `ItemConfig.is_equippable()` derives the answer from `EQUIPPABLE_ITEM_SCENES`, so it cannot disagree with whether a held-item scene exists.
 
 ### D3 — Placeholder resources typed as weapons
 `campfire`, `multitool`, `raft`, `tinderbox`, `torch` `_item_resource.tres`
@@ -345,6 +354,20 @@ See A5. `is_equippable` is a second, hand-maintained source of truth for the sam
 All five are `WeaponItemResource` with an identical `damage = 20.0 / damage_range = 1.5 /
 energy_change_per_use = -0.5`, which is clearly copy-paste scaffolding rather than intent — a
 campfire and a raft are not weapons. Worth retyping before they become load-bearing.
+
+### D4 — The axe's reach was authored under a property name that no longer exists
+`resources/item_resources/axe_item_resource.tres`
+
+The resource set `range = 1.5`, but `WeaponItemResource` declares `damage_range`. Godot silently
+drops an unknown property on load, so the axe fell back to the script default — which also happens
+to be `1.5`, which is why nothing looked wrong. Change that default and the axe would have quietly
+followed it instead of its authored value.
+
+Found by auditing every `.tres` under `resources/` against the `@export` fields its `script_class`
+actually declares (following `extends`). The axe was the only resource affected.
+
+**Status: fixed.** Renamed to `damage_range`. No behavioural change today, since the orphaned value
+matched the default.
 
 ---
 
@@ -435,12 +458,14 @@ references a real key.
 
 - **A1–A6 are done** — the crash paths, the energy/health accounting, and the wall-hacking wolf AI.
 - **B1, B2 and B7 are done** — inventory capacity, the crafting transaction, and closing the menu.
+- **D1, D2 and D4 are done** — the fruit resource, the redundant `is_equippable` field, the axe's reach.
 
 Remaining, in order:
 
-1. **D1 + D2** — fix the fruit resource, and drop the now-unused `ItemResource.is_equippable` field
-   (A5 already moved the drop rules onto `EQUIPPABLE_ITEM_SCENES`, so the field has no readers left).
-2. **B3, B4, B5** — animal movement and the flee-timer loop.
-3. **B6** — the interaction prompt not refreshing between adjacent interactables.
-4. **F1, F4** — gitignore the temp files; add the data-integrity check as a headless test.
-5. **C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.
+1. **B3, B4, B5** — animal movement and the flee-timer loop.
+2. **B6** — the interaction prompt not refreshing between adjacent interactables.
+3. **F4 + D1's root cause** — a headless data-integrity check: every resource's `item_key` matches its
+   registry key, no resource sets a property its script does not declare, every craftable has a
+   blueprint. Both D1 and D4 would have been caught by it in seconds.
+4. **F1** — gitignore the committed editor temp files.
+5. **D3, C1–C8, E1–E6** — cleanup, ideally alongside whatever feature touches each file next.

@@ -9,4 +9,3 @@ item_key = 5
 display_name = "Log"
 icon = ExtResource("1_augof")
 description = "A sturdy log"
-is_equippable = false

@@ -272,8 +272,9 @@ emits `PLA_freeze_player`, requests an inventory refresh, and wires hover handle
 inventory slots and (via the `HotbarSlots` group) hotbar slots, so item tooltips work across both.
 
 Drag-and-drop uses Godot's native `_get_drag_data` / `_can_drop_data` / `_drop_data`.
-`HotbarSlot` extends `InventorySlot` and narrows `_can_drop_data` to items flagged
-`is_equippable`, which is the only rule preventing a log from being placed in the hotbar.
+`HotbarSlot` extends `InventorySlot` and narrows `_can_drop_data` to items `ItemConfig`
+reports as equippable — that is, items with an entry in `EQUIPPABLE_ITEM_SCENES` — which is the
+only rule preventing a log from being placed in the hotbar.
 
 ## 5. Content inventory
 
@@ -327,7 +328,10 @@ Ordered roughly by how much each unlocks.
 
 - **Cross-system communication goes through `EventSystem`.** Do not reach across the tree for a manager.
 - **Content lives in `.tres` resources; code reads it.** Prefer a new exported field on a resource over a branch in a script.
-- **New item?** Add the `Keys` entry, author the `.tres`, register it in the relevant `ItemConfig` dictionaries, and keep `ItemResource.item_key` equal to its dictionary key.
+- **New item?** Add the `Keys` entry, author the `.tres`, and register it in the relevant `ItemConfig` dictionaries.
+  - Keep `ItemResource.item_key` equal to its dictionary key. Nothing checks this, and `HittableObject` matches on it, so a wrong value silently breaks harvesting.
+  - An item becomes equippable by having an entry in `EQUIPPABLE_ITEM_SCENES` — there is no flag to set.
+  - Copying an existing `.tres` as a starting point is how both D1 and D4 happened. Check every field, including the icon.
 - **New behaviour on a held item?** Put the *effect* in a method and call it from a `use_item` animation method track, so timing stays an animator's decision.
 - **Scene inheritance over duplication.** `*_template.tscn` files are the base scenes; concrete content inherits from them (`equippable_item_template` → `equippable_constructable_template` → `equippable_tent`).
 - **Naming.** GDScript standard is `snake_case` for members and functions, `PascalCase` for classes and node names. Parts of the codebase predate that decision (see review item E1).

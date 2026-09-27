@@ -12,4 +12,3 @@ item_key = 16
 display_name = "Torch"
 icon = ExtResource("1_6ikp6")
 description = "Torch"
-is_equippable = true
